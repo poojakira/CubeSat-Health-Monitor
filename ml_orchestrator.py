@@ -1,7 +1,7 @@
 import time
 import logging
 from typing import Optional, Any
-
+import pandas as pd
 from firebase_admin import db
 import mlflow
 
@@ -24,12 +24,12 @@ class MLOrchestrator:
         self.engine: AnomalyEngine = AnomalyEngine()
         self.LEGACY_LATENCY: float = 2.0  # Baseline response requirement for comparative metrics
         
-    def fetch_and_process(self) -> Optional[Any]:
+    def fetch_and_process(self) -> Optional[pd.DataFrame]:
         """
         Fetches the latest telemetry vector from Firebase and extracts features.
 
         Returns:
-            Optional[Any]: A processed pandas DataFrame containing model features, or None if fetch fails.
+            Optional[pd.DataFrame]: A processed pandas DataFrame containing model features, or None if fetch fails.
         """
         try:
             raw = db.reference("/SENSOR_DATA").order_by_key().limit_to_last(500).get()
@@ -48,6 +48,7 @@ class MLOrchestrator:
         df = self.fetch_and_process()
         if df is None or len(df) < 10: 
             return 
+        assert df is not None
         
         features = df[["distance_cm", "rolling_mean", "rolling_std"]]
         
@@ -82,7 +83,7 @@ class MLOrchestrator:
         db.reference("/SYSTEM_METRICS").set({
             "last_update": time.time(),
             "accuracy": f"{accuracy_score:.2f}%",
-            "latency_gain": f"{max(0, latency_improvement):.1f}%",
+            "latency_gain": f"{max(0.0, latency_improvement):.1f}%",
             "status": "NOMINAL" if accuracy_score > 85 else "ANOMALY_SENSITIVE"
         })
 

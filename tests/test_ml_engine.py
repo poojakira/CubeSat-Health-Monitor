@@ -1,5 +1,9 @@
 import pytest
 import numpy as np
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from unittest.mock import patch, MagicMock
 
 # Assuming ml_engine is available in the Python path due to conftest.py

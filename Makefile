@@ -10,7 +10,7 @@ help:
 	@echo "  clean      - Remove pycache, build artifacts, and test outputs"
 
 dev:
-	docker-compose -f docker_compose.yml up --build -d
+	docker-compose up --build -d
 
 install:
 	pip install --upgrade pip
