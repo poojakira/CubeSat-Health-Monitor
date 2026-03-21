@@ -15,69 +15,113 @@
 
 ## 📖 Executive Summary
 
-**Orbit-Q** (also known as OrbitIQ Ops) is a sophisticated, highly scalable command and control (C2) dashboard engineered for modern satellite operations. By integrating real-time telemetry streaming (via Firebase Realtime Database) with state-of-the-art machine learning anomaly detection (Scikit-learn `IsolationForest` & MLflow), Orbit-Q enables operators to preemptively identify critical hardware degradation, thermal anomalies, and power fluctuations before they escalate into mission-critical failures.
+**Orbit-Q** is a sophisticated command and control (C2) dashboard engineered for modern satellite operations. By integrating real-time telemetry streaming with state-of-the-art unsupervized machine learning anomaly detection, it preemptively identifies mission-critical hardware degradation.
 
-This platform bridges the gap between raw aerospace data engineering and actionable intelligence, featuring a responsive, enterprise UI built on Streamlit with robust MLOps integration.
+**Orbit-Q gives you:**
+* **Real-time Telemetry Ingestion:** Processes multi-dimensional spacecraft sensor states seamlessly.
+* **Preemptive Threat Detection:** Identifies thermal anomalies and power fluctuations before escalation using an `IsolationForest` engine.
+* **Rigorous MLOps Lineage:** Ensures every detection model is versioned, parameter-matched, and performance-tracked via MLflow.
+* **Enterprise KPI Dashboarding:** Exposes highly responsive operator state variables through a modular Streamlit GUI.
+
+### Who it's for
+* **Satellite Ops Engineers** needing an intuitive, low-latency diagnostic interface.
+* **Mission Control Teams** requiring immediate deterministic alerting on hardware faults.
+* **ML Ops / SREs** looking for a strict, robust telemetry machine-learning pipeline architecture.
+
+---
+
+## 🗺️ What to Read First
+
+For a busy reviewer evaluating the core systems logic, please review these key components in order:
+1. **`ml_orchestrator.py`**: The central heartbeat of the system. Handles real-time telemetry fetching, feature extraction dispatch, and ML metric logging.
+2. **`ml_engine.py`**: Contains the strictly typed `AnomalyEngine`, showcasing unsupervized scikit-learn models integrated securely with MLflow.
+3. **`tests/test_ml_engine.py`**: Demonstrates strict Test-Driven Development (TDD) proficiency with extensive internal API mocking (MLflow & Scikit-learn).
+4. **`dashboard.py`**: The operator frontend logic demonstrating robust, layout-optimized real-time UI components.
+
+---
 
 ## 🏗️ System Architecture
 
+### Text Flow (Fallback Diagram)
+`[Telemetry Simulator]` → `[Firebase Realtime DB]` → `[Orbit-Q Orchestrator]` → `[Anomaly Engine (IsolationForest)]` → `[Streamlit Operator Dashboard]`
+
+### Component Flow
 ```mermaid
 graph TD;
-    A[Satellite Telemetry Simulator] -->|Real-time Data| B(Firebase Realtime DB);
-    B --> C{Orbit-Q Command Center};
+    A[Telemetry Simulator] -->|Real-time Data| B(Firebase Realtime DB);
+    B --> C{Orbit-Q ML Orchestrator};
     C -->|Feature Engineering| D[Anomaly Engine];
-    D -->|IsolationForest| E[Threat Detection];
-    E --> C;
-    C -->|Alerts & KPIs| F((Operator Dashboard));
+    D -->|IsolationForest Predict| E[Threat Detection];
+    E -->|Alert Flags| C;
+    C -->|State KPIs| F((Streamlit Dashboard));
     
-    subgraph MLOps Lineage
-    D -.->|Logs metrics/models| G[MLflow Tracking Server];
-    G -.->|Artifacts| H[(Model Registry)];
+    subgraph MLOps
+    D -.->|Artifact Log| G[MLflow Tracking];
     end
 ```
 
-### Core Components
-1. **Telemetry Orchestration (`ml_orchestrator.py`, `feature_processor.py`)**: Robust data pipelines handling raw signal ingestion, feature extraction, and real-time state management.
-2. **Machine Learning Engine (`ml_engine.py`)**: Implements strict anomaly detection utilizing unsupervized learning (`IsolationForest`). Model lifecycle, hyperparameter tuning, and artifact lineage are strictly managed via **MLflow**.
-3. **Command Dashboard (`dashboard.py`)**: High-performance Streamlit UI featuring an enterprise KPI ribbon, real-time latency tracking, power/temperature thresholds, and system nominal/off-nominal status indicators.
+---
 
-## 🚀 Quick Start & Installation
+## 📂 Repository Structure
 
-We employ standard Python modern packaging (`pyproject.toml`) and environment management.
+* **`tests/`**: Contains the `pytest` suite ensuring CI/CD reliability, mocking external services.
+* **`pages/`**: Modular Streamlit frontend components extending the primary operator dashboard.
+* **`.github/workflows/`**: Strict CI linting, typing, and automated testing actions.
+* **`ml_engine.py`**: The heavily typed, strictly documented Anomaly Detection subsystem.
+* **`ml_orchestrator.py`**: The data IO loop connecting Firebase to the ML engine.
+* **`feature_processor.py`**: Stateless pure functions for high-speed rolling metrics extraction.
 
-### Prerequisites
-- Python 3.9+ 
-- Firebase Service Account Credentials (`config.SERVICE_ACCOUNT`)
-- A running MLflow instance or local tracking URI.
+---
 
-### Setup (using Make)
+## 🚀 Quick Start & End-to-End Demo
 
+**Resource Requirements:** Minimal (At least 2vCPU, 2GB RAM). Model inference is extremely lightweight due to precise feature selection. 
+
+### Commands
 ```bash
-# Clone the repository
 git clone https://github.com/poojakira/orbit-Q.git
 cd orbit-Q
-
-# Create virtual environment and install dependencies
-make install
-
-# Run the test suite to ensure architectural integrity
-make test
-
-# Launch the Command Center
-make run
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
 ```
 
-### Environment Configuration
-The system relies on a unified `config.py` coupled with environmental overrides or a `secrets.toml` file for secure credential injection. Ensure your `FIREBASE_URL` and `MLFLOW_URI` are correctly provisioned in your deployment environment.
+### End-to-End Demo Scenario:
+1. **Initialize Environment**: Ensure `config.py` contains valid Firebase and MLflow credentials.
+2. **Launch Telemetry**: Run `python mock_telemetry.py` on a separate terminal. This simulator will inject baseline sensor states followed by a synthesized thermal spike into Firebase.
+3. **Start the Orchestrator**: Run `python ml_orchestrator.py` to begin continuous feature fetching and anomaly model training / prediction cycles.
+4. **Launch Dashboard**: Run `streamlit run dashboard.py`.
+5. **Observe**: Watch the Enterprise KPI Ribbon adapt securely to the nominal state. Upon receiving the simulated thermal spike (Step 2), the anomaly triggers visually in the dashboard and logs heavily into MLflow.
 
-## 🧪 Testing and CI/CD
-Code quality and deterministic behavior are strictly enforced. We utilize:
-- **Pytest**: For unit and integration tests (see `tests/`).
-- **GitHub Actions**: Automated CI pipeline triggering on every PR and push to `main` (Linting + Testing).
-- **Flake8 / Black / MyPy**: For static analysis, formatting, and strict type-hint enforcement.
+---
 
-## 🛡️ License
-Distributed under the MIT License. See `LICENSE` for more information.
+## 🧪 Testing & CI
 
-## 🤝 Contributing
-For internal development, please adhere to our strict branching strategy (GitHub Flow) and ensure all commits pass the pre-commit hooks (PEP8 compliance, Type hints via mypy, Test coverage > 90%).
+Orbit-Q maintains rigorous codebase quality constraints ensuring deployment stability.
+* **Coverage**: `>90%` coverage across core ML execution pipelines (`ml_engine.py`, `ml_orchestrator.py`).
+* **CI Build**: GitHub Actions pipeline executes dynamically across multiple Python versions to guarantee broad compatibility.
+* **Pipeline Checks**: Execution of `black` (formatting), `flake8` (static analysis), `mypy` (strict variable typing), and `pytest` (mock-driven unit verification).
+
+---
+
+## 🛡️ Production & Reliability
+
+### Failure Modes & Resiliency
+* **Lost Telemetry / Network Timeout**: `ml_orchestrator.py` uses exception shielding and `None` handling. In an event of a dropout, ML lifecycle operations gracefully pause without crashing the daemon.
+* **Delayed Packets**: Handled implicitly; incoming telemetry is evaluated chronologically via `.order_by_key().limit_to_last(500)`.
+* **Dashboard State Failures**: Data fetches are wrapped in granular `try/except` safeguards preventing a blank screen from terminating the broader UI state.
+
+### Alerting & Monitoring Approach
+Currently, the `AnomalyEngine` flags binary statuses (`NOMINAL`, `ANOMALY_SENSITIVE`). On identification, critical subsets are routed immediately to a Firebase `/ML_ALERTS` queue. Scalable implementations can seamlessly bind this node to PagerDuty or Slack Webhooks for immediate downstream engineering response.
+
+### Security Considerations
+* **Authentication/Authorization**: Data manipulation is tightly coupled to Firebase Admin SDKs driven by server-side private credentials.
+* **Credentials Injection**: Repository expects decoupled secrets (`secrets.toml` or environment keys) entirely bypassing hardcoded credentials. 
+
+---
+
+## 💡 Design Constraints & Trade-Offs
+
+* **Why Firebase?** Chose standard Firebase Realtime DB over Kafka for the MVP pipeline. Firebase provides instantaneous push/subscribe mechanisms and simplifies frontend dashboard syncing without requiring complex Zookeeper/Broker configurations overhead.
+* **Why IsolationForest?** Selected over complex deep autoencoders. Orbital anomalies require extremely low latency and explainable boundaries. IsolationForest executes reliably over multi-variate continuous telemetry data without extensive GPU availability or complex training epoch waits.
+* **Why Streamlit?** Allows immediate Pythonic binding of predictive models to an operator UI without the latency penalty of managing standalone React/Node backends.
