@@ -109,3 +109,18 @@ Currently, the `AnomalyEngine` flags binary statuses (`NOMINAL`, `ANOMALY_SENSIT
 * **Why Firebase?** Chose standard Firebase Realtime DB over Kafka for the MVP pipeline. Firebase provides instantaneous push/subscribe mechanisms and simplifies frontend dashboard syncing without requiring complex Zookeeper/Broker configurations overhead.
 * **Why IsolationForest?** Selected over complex deep autoencoders. Orbital anomalies require extremely low latency and explainable boundaries. IsolationForest executes reliably over multi-variate continuous telemetry data without extensive GPU availability or complex training epoch waits.
 * **Why Streamlit?** Allows immediate Pythonic binding of predictive models to an operator UI without the latency penalty of managing standalone React/Node backends.
+
+## What “flight-ready” means here
+
+This stack is **mission-control inspired**, not running on an actual satellite bus (yet). It focuses on:
+
+- Real-time health monitoring for simulated CubeSat telemetry streams.
+- Automated anomaly detection and alerting on power, thermal, and comms channels.
+- Operator workflows: triage dashboards, playbook-triggered actions, and audit logs.[page:2]
+
+The architecture is structured so it can map to a real mission:
+- `ingestion/` – gRPC / REST endpoints for telemetry.
+- `models/` – anomaly detectors for health metrics.
+- `orchestrator/` – rules engine for alerts and actions.
+- `ui/` – operator dashboard.[page:2]
+
