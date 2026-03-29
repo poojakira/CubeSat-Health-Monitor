@@ -8,7 +8,6 @@ Usage:
     from orbit_q.engine.kernels.anomaly_fusion import fuse_scores
     fused = fuse_scores(iso_scores, ae_scores, iso_weight=0.6)
 """
-
 import numpy as np
 from typing import Optional
 
@@ -28,7 +27,7 @@ except Exception:
     TORCH_AVAILABLE = False
 
 
-# ── Triton Kernel (GPU) ───────────────────────────────────────────────────────
+# ── Triton Kernel (GPU) ─────────────────────────────────────────────────────────────────────────────────
 if TRITON_AVAILABLE and TORCH_AVAILABLE:
 
     @triton.jit
@@ -44,19 +43,15 @@ if TRITON_AVAILABLE and TORCH_AVAILABLE:
         pid = tl.program_id(axis=0)
         offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
         mask = offsets < n_elements
-
         iso = tl.load(iso_ptr + offsets, mask=mask)
         ae = tl.load(ae_ptr + offsets, mask=mask)
-
         # Normalize to [0, 1] range using sigmoid
         iso_norm = 1.0 / (1.0 + tl.exp(iso))  # higher score = more nominal
         ae_norm = ae / (ae + 1.0)  # AE: higher = more anomalous → invert
         ae_norm_inv = 1.0 - ae_norm
-
         # Weighted harmonic mean
         denom = iso_w / iso_norm + ae_w / ae_norm_inv
         fused = (iso_w + ae_w) / denom
-
         tl.store(out_ptr + offsets, fused, mask=mask)
 
     def _triton_fuse(iso: np.ndarray, ae: np.ndarray, iso_w: float, ae_w: float) -> np.ndarray:
@@ -67,10 +62,10 @@ if TRITON_AVAILABLE and TORCH_AVAILABLE:
         n = iso_t.numel()
         grid = lambda meta: (triton.cdiv(n, meta["BLOCK_SIZE"]),)
         _fusion_kernel[grid](iso_t, ae_t, out, iso_w, ae_w, n, BLOCK_SIZE=1024)
-        return out.cpu().numpy()
+        return np.asarray(out.cpu().numpy())
 
 
-# ── NumPy CPU fallback ────────────────────────────────────────────────────────
+# ── NumPy CPU fallback ──────────────────────────────────────────────────────────────────────────────
 def _numpy_fuse(iso: np.ndarray, ae: np.ndarray, iso_w: float, ae_w: float) -> np.ndarray:
     """Weighted harmonic mean on CPU using normalized scores."""
     # IsolationForest: higher (less negative) = more nominal
@@ -78,12 +73,11 @@ def _numpy_fuse(iso: np.ndarray, ae: np.ndarray, iso_w: float, ae_w: float) -> n
     # AE: higher reconstruction error = more anomalous, invert
     ae_norm = ae / (ae.max() + 1e-9)
     ae_norm_inv = np.clip(1.0 - ae_norm, 1e-9, 1.0)
-
     denom = iso_w / np.clip(iso_norm, 1e-9, 1.0) + ae_w / ae_norm_inv
-    return (iso_w + ae_w) / denom
+    return np.asarray((iso_w + ae_w) / denom)
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Public API ───────────────────────────────────────────────────────────────────────────────────────
 def fuse_scores(
     iso_scores: np.ndarray,
     ae_scores: np.ndarray,
@@ -99,13 +93,11 @@ def fuse_scores(
     Uses CUDA Triton kernel when available, falls back to NumPy otherwise.
     """
     ae_w = ae_weight if ae_weight is not None else (1.0 - iso_weight)
-
     if TRITON_AVAILABLE and TORCH_AVAILABLE and torch.cuda.is_available():
         return _triton_fuse(iso_scores, ae_scores, iso_weight, ae_w)
-
     return _numpy_fuse(iso_scores, ae_scores, iso_weight, ae_w)
 
 
 def classify_fused(fused_scores: np.ndarray, threshold: float = 0.5) -> np.ndarray:
     """Convert fused scores to -1 (anomaly) / +1 (nominal) labels."""
-    return np.where(fused_scores < threshold, -1, 1).astype(int)
+    return np.asarray(np.where(fused_scores < threshold, -1, 1).astype(int))
