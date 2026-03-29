@@ -55,16 +55,8 @@ class CubeSatSimulator(threading.Thread):
         return {
             "satellite_id": self.satellite_id,
             "timestamp": time.time(),
-            "temperature_C": (
-                random.uniform(85, 130)
-                if is_anomaly
-                else random.normalvariate(24, 3)
-            ),
-            "voltage_V": (
-                random.uniform(2.0, 3.0)
-                if is_anomaly
-                else random.normalvariate(5.0, 0.1)
-            ),
+            "temperature_C": random.uniform(85, 130) if is_anomaly else random.normalvariate(24, 3),
+            "voltage_V": random.uniform(2.0, 3.0) if is_anomaly else random.normalvariate(5.0, 0.1),
             "signal_strength_dBm": random.normalvariate(-60, 5),
             "gyro_x_dps": random.normalvariate(0, 0.5),
             "is_anomaly": is_anomaly,
@@ -137,9 +129,7 @@ class MultiCubeSatStressTest:
             )
             for i in range(self.n_satellites)
         ]
-        consumer = threading.Thread(
-            target=self._shared_queue_consumer, args=(q,), daemon=True
-        )
+        consumer = threading.Thread(target=self._shared_queue_consumer, args=(q,), daemon=True)
         consumer.start()
         log.info(
             "Stress test | %d satellites x %d Hz x %.0fs",
@@ -163,9 +153,7 @@ class MultiCubeSatStressTest:
             "duration_s": round(total_elapsed, 2),
             "total_packets": total_packets,
             "total_anomalies": total_anomalies,
-            "anomaly_rate_pct": round(
-                100 * total_anomalies / max(total_packets, 1), 2
-            ),
+            "anomaly_rate_pct": round(100 * total_anomalies / max(total_packets, 1), 2),
             "aggregate_throughput_hz": round(aggregate_hz, 1),
             "packets_in_queue": len(self._packet_store),
         }
@@ -174,18 +162,13 @@ class MultiCubeSatStressTest:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
     import sys
 
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 10
     hz = int(sys.argv[2]) if len(sys.argv) > 2 else 50
     duration = float(sys.argv[3]) if len(sys.argv) > 3 else 10.0
-    test = MultiCubeSatStressTest(
-        n_satellites=n, hz_per_satellite=hz, duration_s=duration
-    )
+    test = MultiCubeSatStressTest(n_satellites=n, hz_per_satellite=hz, duration_s=duration)
     report = test.run()
     print("\n=== STRESS TEST RESULTS ===")
     for k, v in report.items():
