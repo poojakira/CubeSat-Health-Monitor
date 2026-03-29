@@ -65,28 +65,18 @@ class AnomalyEngine:
                 input_dim = X.shape[1] if hasattr(X, "shape") else len(X[0])
             except Exception:
                 input_dim = 5
-            self.ae_model = AutoencoderAnomalyDetector(
-                input_dim=input_dim, epochs=20
-            )
+            self.ae_model = AutoencoderAnomalyDetector(input_dim=input_dim, epochs=20)
             self.ae_model.fit(X)
             # 3. Train LSTM Temporal Detector
-            self.lstm_model = LSTMTemporalDetector(
-                input_dim=input_dim, epochs=15
-            )
+            self.lstm_model = LSTMTemporalDetector(input_dim=input_dim, epochs=15)
             self.lstm_model.fit(X)
             # Log models
             mlflow.sklearn.log_model(self.iso_model, "iso_model")
-            mlflow.log_param(
-                "ensemble_models", "IsolationForest+Autoencoder+LSTM"
-            )
+            mlflow.log_param("ensemble_models", "IsolationForest+Autoencoder+LSTM")
             os.makedirs("models", exist_ok=True)
             with open(config.MODEL_PATH, "wb") as f:
                 pickle.dump(
-                    {
-                        "iso": self.iso_model,
-                        "ae": self.ae_model,
-                        "lstm": self.lstm_model,
-                    },
+                    {"iso": self.iso_model, "ae": self.ae_model, "lstm": self.lstm_model},
                     f,
                 )
         return self.iso_model, self.ae_model
@@ -94,9 +84,7 @@ class AnomalyEngine:
     def predict(self, X: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Run the three-model ensemble and fuse scores via Triton kernel."""
         # Load from disk if models not in memory
-        if (self.iso_model is None or self.ae_model is None) and os.path.exists(
-            config.MODEL_PATH
-        ):
+        if (self.iso_model is None or self.ae_model is None) and os.path.exists(config.MODEL_PATH):
             with open(config.MODEL_PATH, "rb") as f:
                 models = pickle.load(f)
             if isinstance(models, dict):
@@ -125,18 +113,14 @@ class AnomalyEngine:
             if len(lstm_raw) >= n:
                 lstm_scores = lstm_raw[:n]
             else:
-                lstm_scores = np.pad(
-                    lstm_raw, (0, n - len(lstm_raw)), mode="edge"
-                )
+                lstm_scores = np.pad(lstm_raw, (0, n - len(lstm_raw)), mode="edge")
         else:
             lstm_scores = np.zeros(len(iso_scores), dtype=np.float32)
         # 4. Fuse IsolationForest + Autoencoder via Triton kernel (or NumPy fallback)
         fused_iso_ae = fuse_scores(iso_scores, ae_scores, iso_weight=0.6)
         # 5. Incorporate LSTM: weighted average with normalised LSTM score
         lstm_norm = lstm_scores / (lstm_scores.max() + 1e-9)
-        ensemble_scores = 0.7 * fused_iso_ae + 0.3 * (
-            1.0 - np.clip(lstm_norm, 0.0, 1.0)
-        )
+        ensemble_scores = 0.7 * fused_iso_ae + 0.3 * (1.0 - np.clip(lstm_norm, 0.0, 1.0))
         # 6. Classify: fused score < 0.5 means anomaly (-1), else nominal (+1)
         ensemble_preds = np.where(ensemble_scores < 0.5, -1, 1).astype(int)
         log.debug(
