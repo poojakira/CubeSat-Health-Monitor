@@ -30,9 +30,9 @@ class AnomalyEngine:
     Enterprise Anomaly Detection Engine for Satellite Telemetry.
 
     Three-model ensemble:
-      1. IsolationForest  — global outlier detection (GPU via cuML if available)
-      2. PyTorch Autoencoder — reconstruction-error anomaly detection
-      3. LSTM Temporal Detector — sequence-level temporal pattern anomaly detection
+      1. IsolationForest - global outlier detection (GPU via cuML if available)
+      2. PyTorch Autoencoder - reconstruction-error anomaly detection
+      3. LSTM Temporal Detector - sequence-level temporal pattern anomaly detection
 
     Scores are fused via a CUDA Triton kernel (falls back to NumPy on CPU).
     """
@@ -119,7 +119,6 @@ class AnomalyEngine:
         # 3. LSTM scores (pad/trim to match length)
         if self.lstm_model is not None:
             lstm_raw = self.lstm_model.decision_function(X).astype(np.float32)
-            # Align length (LSTM may have different length due to windowing)
             n = len(iso_scores)
             if len(lstm_raw) >= n:
                 lstm_scores = lstm_raw[:n]
@@ -131,11 +130,11 @@ class AnomalyEngine:
         # 4. Fuse IsolationForest + Autoencoder via Triton kernel (or NumPy fallback)
         fused_iso_ae = fuse_scores(iso_scores, ae_scores, iso_weight=0.6)
 
-        # 5. Incorporate LSTM: simple average of fused score with normalised LSTM score
+        # 5. Incorporate LSTM: weighted average with normalised LSTM score
         lstm_norm = lstm_scores / (lstm_scores.max() + 1e-9)
         ensemble_scores = 0.7 * fused_iso_ae + 0.3 * (1.0 - np.clip(lstm_norm, 0.0, 1.0))
 
-        # 6. Classify: fused score < 0.5 → anomaly (-1), else nominal (+1)
+        # 6. Classify: fused score < 0.5 means anomaly (-1), else nominal (+1)
         ensemble_preds = np.where(ensemble_scores < 0.5, -1, 1).astype(int)
 
         log.debug(
