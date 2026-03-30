@@ -2,12 +2,6 @@
 
 **Satellite health anomaly detection + retraining automation — academic/personal project**
 
-[
-[
-[
-[
-[
-
 **3-Model ML Ensemble** · **Drift Detection & Auto-Retraining** · **HMAC Auth** · **Firebase Integration** · **Streamlit C2 Dashboard**
 
 ***
