@@ -8,7 +8,7 @@
 
 ## Overview
 
-orbit-Q is a CubeSat-style satellite health monitoring pipeline built to practice end‑to‑end MLOps on noisy telemetry streams. It combines a 3‑model anomaly ensemble, a telemetry simulator with injected faults, a polling orchestrator, MLflow tracking, and a Streamlit command‑and‑control dashboard in a single Python package.
+orbit-Q is a CubeSat-style satellite health monitoring pipeline that we (Pooja Kiran and Rhutvik Pachghare) built to practice end‑to‑end MLOps and robotics-style telemetry handling on noisy satellite streams. It combines a 3‑model anomaly ensemble, a telemetry simulator with injected faults, a polling orchestrator, MLflow tracking, and a Streamlit command‑and‑control dashboard in a single Python package
 
 ---
 
