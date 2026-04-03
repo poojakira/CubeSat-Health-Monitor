@@ -7,6 +7,7 @@ import mlflow
 
 from orbit_q.orchestrator.feature_processor import FeatureProcessor
 from orbit_q.engine.ml_engine import AnomalyEngine
+from orbit_q.engine.metrics_evaluator import MetricsEvaluator
 from orbit_q import config
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -67,6 +68,24 @@ class MLOrchestrator:
 
         # Safety catch bounding for algorithmic efficiency
         current_latency = max(current_latency, 0.0001)
+<<<<<<< HEAD
+=======
+        
+        # 5. CALCULATE INDUSTRIAL METRICS
+        # Throughput (Events Per Second)
+        eps = len(df) / current_latency
+        
+        # End-to-End Latency (Ingest to Flag)
+        # We calculate the mean delay between the telemetry timestamp and now
+        e2e_latency = (time.time() - df["timestamp"].astype(int) / 1e9).mean()
+        
+        # Detection metrics (Precision, Recall, F1)
+        detection_metrics = {}
+        if "true_label" in df.columns:
+            detection_metrics = MetricsEvaluator.calculate_detection_metrics(
+                df["true_label"].values, preds
+            )
+>>>>>>> a4248a9 (feat: implement industrial-grade telemetry monitoring, model performance metrics (P/R/F1, EPS, Latency), and updated operational dashboard)
 
         # Calculate rigorous operation metrics
         latency_improvement = ((self.LEGACY_LATENCY - current_latency) / self.LEGACY_LATENCY) * 100
@@ -77,10 +96,18 @@ class MLOrchestrator:
             with mlflow.start_run(run_name="Mission_Pulse"):
                 mlflow.log_metric("response_time_improvement_pct", latency_improvement)
                 mlflow.log_metric("model_accuracy_pct", accuracy_score)
+                mlflow.log_metric("events_per_second", eps)
+                mlflow.log_metric("e2e_latency_seconds", e2e_latency)
+                
+                if detection_metrics:
+                    mlflow.log_metric("precision", detection_metrics["precision"])
+                    mlflow.log_metric("recall", detection_metrics["recall"])
+                    mlflow.log_metric("f1", detection_metrics["f1"])
         except Exception as e:
             logging.error(f"MLflow Log Error: {e}")
 
         # Push state to Dashboards via Firebase Operations DB
+<<<<<<< HEAD
         db.reference("/SYSTEM_METRICS").set(
             {
                 "last_update": time.time(),
@@ -89,6 +116,25 @@ class MLOrchestrator:
                 "status": "NOMINAL" if accuracy_score > 85 else "ANOMALY_SENSITIVE",
             }
         )
+=======
+        metrics_payload = {
+            "last_update": time.time(),
+            "accuracy": f"{accuracy_score:.2f}%",
+            "latency_gain": f"{max(0.0, latency_improvement):.1f}%",
+            "eps": f"{eps:.2f}",
+            "e2e_latency": f"{e2e_latency:.2f}s",
+            "status": "NOMINAL" if accuracy_score > 85 else "ANOMALY_SENSITIVE"
+        }
+        
+        if detection_metrics:
+            metrics_payload.update({
+                "precision": f"{detection_metrics['precision']:.3f}",
+                "recall": f"{detection_metrics['recall']:.3f}",
+                "f1": f"{detection_metrics['f1']:.3f}"
+            })
+            
+        db.reference("/SYSTEM_METRICS").set(metrics_payload)
+>>>>>>> a4248a9 (feat: implement industrial-grade telemetry monitoring, model performance metrics (P/R/F1, EPS, Latency), and updated operational dashboard)
 
         # Dispath Critical Alerts if outlier threshold breached
         df["anomaly"] = preds

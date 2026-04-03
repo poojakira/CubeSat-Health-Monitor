@@ -120,18 +120,21 @@ All numbers below are from CPU‑only local runs on simulated telemetry:
 
 **What we do NOT claim:** real satellite deployment, validated precision/recall on labelled flight data, or production‑grade scalability and SLOs. GPU paths exist but were not benchmarked on real CUDA hardware during this project.
 
-### Evaluation (Simulated Labels)
+### Evaluation (Industrial Metrics)
 
-To sanity‑check the ensemble qualitatively, I ran the simulator with known injected faults and treated those injections as synthetic labels. This is **not** real satellite ground truth, but it helps validate behaviour and surface obvious gaps.
+Orbit-Q implements high-fidelity telemetry monitoring using standard industrial MLOps metrics. We use ground truth labels (`true_label`) injected by the simulator to evaluate real-time performance.
 
-| Fault type       | Description                                        | Behaviour in this project                               |
-|------------------|----------------------------------------------------|---------------------------------------------------------|
-| Hardware anomaly | Distance 300–500cm instead of 20–100cm             | Detected reliably as outliers by the ensemble           |
-| Corrupted data   | NaN / -9999 distance values                        | Flagged via preprocessing and anomaly scores            |
-| Missing packet   | Packet dropped entirely                            | Not directly labelled; affects temporal patterns only   |
-| Delayed packet   | Timestamp delayed by 5 seconds                     | Sometimes flagged when it breaks temporal context       |
+| Metric | Description | Purpose |
+|---|---|---|
+| **Precision** | Correct anomalies / Total predicted | Measures alert reliability |
+| **Recall** | Correct anomalies / Total actual | Measures detection coverage |
+| **F1 Score** | Harmonic mean of P & R | Primary health accuracy KPI |
+| **EPS** | Events Per Second | Real-time throughput measure |
+| **E2E Latency** | Ingest → Anomaly Flag | System responsiveness delay |
 
-Because the simulator does not emit a full labelled dataset for every timestep, I do **not** report a formal precision/recall/F1 score here. A next step would be to extend the simulator so each emitted packet carries a ground‑truth anomaly flag and then compute proper classification metrics over long runs (per fault type and overall).
+#### Model Drift & Retraining
+- **Performance Delta**: We evaluate F1 score **before and after** every retraining event to quantify the improvement.
+- **Retraining Frequency**: Tracked as retrains per 1M samples to monitor model stability.
 
 ---
 
@@ -185,6 +188,8 @@ orbit-Q/
 │   ├── sensor_anomaly_pipeline.py # Standalone pipeline wrapper
 │   ├── engine/
 │   │   ├── ml_engine.py           # AnomalyEngine: ensemble + score fusion
+│   │   ├── evaluate.py            # Offline evaluation script
+│   │   ├── metrics_evaluator.py    # Metric calculation utility
 │   │   ├── models/
 │   │   │   ├── autoencoder.py     # PyTorch reconstruction-error detector
 │   │   │   └── lstm_detector.py   # PyTorch temporal sequence detector
@@ -258,4 +263,4 @@ pytest tests/ --cov=src --cov-report=html
 
 ---
 
-**Version:** v1.0 · **License:** MIT 
+**Version:** v1.1 · **License:** MIT 

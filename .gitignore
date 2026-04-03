@@ -163,3 +163,7 @@ cython_debug/
 # Streamlit
 .streamlit/
 secrets.toml
+
+# MLflow
+mlflow.db
+mlruns/

@@ -112,22 +112,55 @@ def get_firebase_telemetry() -> pd.DataFrame:
 
 
 df = get_firebase_telemetry() if (firebase_ok and sim_mode.startswith("🔴")) else get_mock_telemetry()
-anomaly_df = df[df.get("is_anomaly", pd.Series([False] * len(df)))] if "is_anomaly" in df.columns else pd.DataFrame()
+anomaly_df = (
+    df[df.get("is_anomaly", df.get("true_label", pd.Series([False] * len(df))) == -1)]
+    if ("is_anomaly" in df.columns or "true_label" in df.columns)
+    else pd.DataFrame()
+)
 anomaly_count = len(anomaly_df)
 
-# ── KPI Ribbon ───────────────────────────────────────────────────────────────
-st.subheader("📊 Live KPI Ribbon")
-c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric(
-    "🌡️ Avg Temp",
-    f"{df['temperature_C'].mean():.1f} °C" if "temperature_C" in df.columns else "N/A",
-    delta=f"{df['temperature_C'].diff().mean():.2f}" if "temperature_C" in df.columns else None,
-)
-c2.metric("⚡ Avg Voltage", f"{df['voltage_V'].mean():.2f} V" if "voltage_V" in df.columns else "N/A")
-c3.metric("📡 Signal", f"{df['signal_strength_dBm'].mean():.1f} dBm" if "signal_strength_dBm" in df.columns else "N/A")
-c4.metric("🚨 Anomalies", anomaly_count, delta=f"+{anomaly_count}" if anomaly_count else None, delta_color="inverse")
-c5.metric("📦 Stream Rate", f"{refresh_hz} Hz")
-c6.metric("🛰️ Status", "ANOMALY" if anomaly_count > 0 else "NOMINAL")
+# Fetch System Metrics
+system_metrics = {}
+if firebase_ok:
+    try:
+        system_metrics = db.reference("/SYSTEM_METRICS").get() or {}
+    except Exception:
+        pass
+
+# ── KPI & Metrics Section ──────────────────────────────────────────────────
+tab_ops, tab_eval = st.tabs(["🚀 Operational Ingestion", "🎯 System Evaluation"])
+
+with tab_ops:
+    st.subheader("📊 Live KPI Ribbon")
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric(
+        "🌡️ Avg Temp",
+        f"{df['temperature_C'].mean():.1f} °C" if "temperature_C" in df.columns else "N/A",
+    )
+    c2.metric("⚡ Avg Voltage", f"{df['voltage_V'].mean():.2f} V" if "voltage_V" in df.columns else "N/A")
+    c3.metric("📥 EPS", system_metrics.get("eps", "N/A"))
+    c4.metric("🚨 Anomalies", anomaly_count, delta_color="inverse")
+    c5.metric("⏲️ E2E Latency", system_metrics.get("e2e_latency", "N/A"))
+    c6.metric("🛰️ Status", system_metrics.get("status", "NOMINAL"))
+
+with tab_eval:
+    st.subheader("🎯 Model Performance & Drift")
+    q1, q2, q3, q4 = st.columns(4)
+    q1.metric("Precision", system_metrics.get("precision", "N/A"))
+    q2.metric("Recall", system_metrics.get("recall", "N/A"))
+    q3.metric("F1 Score", system_metrics.get("f1", "N/A"))
+    q4.metric("Latency Gain", system_metrics.get("latency_gain", "N/A"))
+
+    st.markdown("---")
+    st.markdown("### 🔁 Retraining Context")
+    if system_metrics.get("last_retrain"):
+        st.info(
+            f"Last automated retrain event triggered on telemetry drift. Retrain count: {system_metrics.get('retrain_count', 0)}"
+        )
+    else:
+        st.success("Model calibration stable based on present anomaly distribution.")
+
+st.markdown("---")
 
 st.markdown("---")
 

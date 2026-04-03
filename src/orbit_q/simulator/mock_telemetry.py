@@ -49,12 +49,13 @@ def transmit():
             "distance_cm": distance if np.isnan(distance) else round(distance, 2),
             "timestamp": time.time() - (5.0 if is_delayed else 0.0),  # delay by 5 seconds
             "signal_strength": random.randint(70, 100),
+            "true_label": -1 if is_anomaly else 1
         }
 
         if db.reference:
             db.reference("/SENSOR_DATA").push(packet)
 
-        logging.info(f"Sent: {face} | Dist: {distance:.2f}cm")
+        logging.info(f"Sent: {face} | Dist: {distance:.2f}cm | Label: {'ANOMALY' if is_anomaly else 'NOMINAL'}")
         time.sleep(1)
 
 
