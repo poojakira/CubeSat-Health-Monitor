@@ -136,6 +136,18 @@ Orbit-Q implements high-fidelity telemetry monitoring using standard industrial 
 - **Performance Delta**: We evaluate F1 score **before and after** every retraining event to quantify the improvement.
 - **Retraining Frequency**: Tracked as retrains per 1M samples to monitor model stability.
 
+### Empirical Benchmark Run (Local)
+
+Reproduced using the `orbit-q benchmark` command on a local CPU environment (100 Hz simulation, 10s window):
+
+| Metric | Measured Value |
+|---|---|
+| **Samples Processed** | 1,000 |
+| **Model Train Time** | 7,432.9 ms |
+| **Inference Time** | 15.7 ms |
+| **Throughput** | **63,622 samples/s** |
+| **Latency per detection** | **15.72 µs** |
+
 ---
 
 ## Quick Start
