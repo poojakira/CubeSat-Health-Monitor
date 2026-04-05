@@ -7,18 +7,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from unittest.mock import patch, MagicMock
 
-from orbit_q.engine.ml_engine import AnomalyEngine
+from orbitq.ensemble.engine import AnomalyEngine
 
 
 @pytest.fixture
 def mock_mlflow():
-    with patch("orbit_q.engine.ml_engine.mlflow") as mock:
+    with patch("orbitq.ensemble.engine.mlflow") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_config():
-    with patch("orbit_q.engine.ml_engine.config") as mock:
+    with patch("orbitq.ensemble.engine.config") as mock:
         mock.MLFLOW_URI = "sqlite:///mock_mlflow.db"
         mock.EXPERIMENT_NAME = "Mock_Experiment"
         mock.N_ESTIMATORS = 10
@@ -49,8 +49,8 @@ def test_anomaly_engine_initialization(mock_mlflow, mock_config):
     assert engine.ae_model is None
 
 
-@patch("orbit_q.engine.ml_engine.os.makedirs")
-@patch("orbit_q.engine.ml_engine.pickle.dump")
+@patch("orbitq.ensemble.engine.os.makedirs")
+@patch("orbitq.ensemble.engine.pickle.dump")
 @patch("builtins.open", new_callable=MagicMock)
 def test_train_model(mock_open, mock_pickle_dump, mock_makedirs, mock_mlflow, mock_config, dummy_data):
     """Training should produce both IsolationForest and Autoencoder sub-models."""
@@ -72,8 +72,8 @@ def test_train_model(mock_open, mock_pickle_dump, mock_makedirs, mock_mlflow, mo
     mock_pickle_dump.assert_called_once()
 
 
-@patch("orbit_q.engine.ml_engine.os.makedirs")
-@patch("orbit_q.engine.ml_engine.pickle.dump")
+@patch("orbitq.ensemble.engine.os.makedirs")
+@patch("orbitq.ensemble.engine.pickle.dump")
 @patch("builtins.open", new_callable=MagicMock)
 def test_predict_model(mock_open, mock_pickle_dump, mock_makedirs, mock_mlflow, mock_config, dummy_data):
     """Ensemble predictions should return labels and scores for all input samples."""
